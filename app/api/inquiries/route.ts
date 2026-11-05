@@ -17,13 +17,50 @@ export async function POST(request: Request) {
     }, { status: 422 });
   }
 
-  // Do not report success or discard a lead until a delivery provider is configured.
-  if (!process.env.RESEND_API_KEY || !process.env.INQUIRY_TO_EMAIL || !process.env.INQUIRY_FROM_EMAIL) {
+  const { RESEND_API_KEY, INQUIRY_TO_EMAIL, INQUIRY_FROM_EMAIL } = process.env;
+  if (!RESEND_API_KEY || !INQUIRY_TO_EMAIL || !INQUIRY_FROM_EMAIL) {
     return NextResponse.json({
       error: "Enquiry delivery is not configured yet. Please contact the agency directly or try again later.",
     }, { status: 503 });
   }
 
-  // Provider integration is intentionally explicit: configure and implement delivery before production.
-  return NextResponse.json({ error: "The enquiry service is temporarily unavailable. Please contact the agency directly." }, { status: 503 });
+  const { name, email, phone, interest, message } = parsed.data;
+  const text = [
+    "A new website enquiry has been received.",
+    "",
+    `Name: ${name}`,
+    `Email: ${email}`,
+    `Phone: ${phone}`,
+    `Interest: ${interest}`,
+    "",
+    "Message:",
+    message,
+  ].join("\n");
+
+  try {
+    const delivery = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: INQUIRY_FROM_EMAIL,
+        to: [INQUIRY_TO_EMAIL],
+        reply_to: email,
+        subject: `Website enquiry: ${interest}`,
+        text,
+      }),
+    });
+
+    if (!delivery.ok) {
+      console.error("Inquiry email provider rejected delivery:", delivery.status);
+      return NextResponse.json({ error: "We could not deliver your enquiry right now. Please try again shortly." }, { status: 502 });
+    }
+
+    return NextResponse.json({ success: true, message: "Your enquiry has been received." });
+  } catch (error) {
+    console.error("Inquiry delivery failed:", error);
+    return NextResponse.json({ error: "The enquiry service is temporarily unavailable. Please try again shortly." }, { status: 502 });
+  }
 }
