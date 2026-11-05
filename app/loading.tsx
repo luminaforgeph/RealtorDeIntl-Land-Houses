@@ -1,0 +1,3 @@
+export default function Loading() {
+  return <div role="status" aria-live="polite" style={{minHeight:"70vh",display:"grid",placeItems:"center",background:"#f5f2eb"}}><div style={{textAlign:"center"}}><span style={{fontFamily:"Georgia,serif",fontSize:48,color:"#b99a62"}}>R.</span><p style={{fontSize:10,letterSpacing:".2em",textTransform:"uppercase",color:"#77756f"}}>Preparing your experience…</p></div></div>;
+}
